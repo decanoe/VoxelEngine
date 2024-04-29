@@ -1,0 +1,52 @@
+[
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\main.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\main.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/main.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\utility\\graphics\\screen.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\utility\\graphics\\screen.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/utility/graphics/screen.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\utility\\graphics\\openGL_related.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\utility\\graphics\\openGL_related.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/utility/graphics/openGL_related.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\utility\\graphics\\buffer.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\utility\\graphics\\buffer.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/utility/graphics/buffer.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\utility\\math\\vector3.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\utility\\math\\vector3.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/utility/math/vector3.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\world\\materials.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\world\\materials.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/world/materials.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\world\\world_generator.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\world\\world_generator.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/world/world_generator.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\world\\chunk.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\world\\chunk.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/world/chunk.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\world\\world.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\world\\world.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/world/world.cpp"
+},
+{
+  "directory": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/VoxelEngine.dir/includes_CXX.rsp -g -std=gnu++14 -o CMakeFiles\\VoxelEngine.dir\\class\\gameplay\\player.cpp.obj -c C:\\Users\\decan\\Documents\\ExtraScolaire\\c++\\VoxelEngine\\class\\gameplay\\player.cpp",
+  "file": "C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/class/gameplay/player.cpp"
+}
+]

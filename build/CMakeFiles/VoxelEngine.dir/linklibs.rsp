@@ -1,0 +1,1 @@
+  -L"C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/glew-2.1.0/lib/Release/x64"  -L"C:/Users/decan/Documents/ExtraScolaire/c++/VoxelEngine/SDL2-2.28.5/lib/x64"  -lSDL2 -lSDL2main -lglew32 -lopengl32 -lglu32 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 
