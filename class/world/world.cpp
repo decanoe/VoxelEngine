@@ -45,7 +45,7 @@ World::World(unsigned int loading_radius, WorldGenerator* generator) {
     this->last_radius_loaded = -1;
 }
 void World::load_circle(int radius) {
-    radius = __min(radius, this->loading_radius);
+    radius = __min(radius, (int)(this->loading_radius));
 
     for (int ring_radius = this->last_radius_loaded + 1; ring_radius <= radius; ring_radius++)
     {
@@ -88,7 +88,7 @@ void World::update(float max_time) {
     #ifndef DISABLE_THREAD
     if (this->task_queue.empty()) {
     #endif
-        if (this->last_radius_loaded < (int)this->loading_radius) {
+        if (this->last_radius_loaded < (int)(this->loading_radius)) {
             this->load_circle(this->last_radius_loaded + 1);
         }
     #ifndef DISABLE_THREAD
@@ -96,8 +96,15 @@ void World::update(float max_time) {
     }
     else if (this->get_chunk(this->task_queue.front().chunk_pos)->is_fully_generated()) {
         this->task_queue.front().thread.detach();
+
+        if (this->task_queue.front().chunk_pos == Vector3Int(0, 0, 0)) {
+            for (int i = 0; i < this->get_chunk(this->task_queue.front().chunk_pos)->flatten(this->compute_lod(Vector3Int(0, 0, 0)))->size(); i++)
+            {
+                std::cout << this->get_chunk(this->task_queue.front().chunk_pos)->flatten()->at(i).value << ", ";
+            }
+        }
+
         this->send_data(this->task_queue.front().chunk_pos);
-        std::cout << "adding " << this->get_chunk(this->task_queue.front().chunk_pos)->flatten()->size() << " |\tbuffer size : " << this->data_buffer.get_used_size() / CELL_MEMORY_SIZE << "\n";
         this->task_queue.pop();
     }
     #endif
@@ -134,7 +141,7 @@ void World::dispose() {
 }
 #ifndef DISABLE_BUFFER
 void World::create_buffer(GLuint data_buffer_binding, GLuint index_buffer_binding) {
-    this->data_buffer = GrowableBuffer(true, CELL_MEMORY_SIZE * 2000 * 10, CELL_MEMORY_SIZE * 200 * this->loading_radius*this->loading_radius*this->loading_radius);
+    this->data_buffer = GrowableBuffer(true, CELL_MEMORY_SIZE * 2000 * 10 * 10);
     this->data_buffer.bind_buffer(data_buffer_binding);
     this->index_buffer = Buffer(true);
     this->index_buffer.bind_buffer(index_buffer_binding);
@@ -145,9 +152,9 @@ void World::send_data() {
     #ifndef DISABLE_BUFFER
     if (!this->data_buffer.is_buffer() || !this->index_buffer.is_buffer()) return;
 
-    for (int x = this->loading_radius; x < this->loading_radius; x++)
-    for (int y = this->loading_radius; y < this->loading_radius; y++)
-    for (int z = this->loading_radius; z < this->loading_radius; z++)
+    for (int x = -(int)(this->loading_radius); x <= (int)(this->loading_radius); x++)
+    for (int y = -(int)(this->loading_radius); y <= (int)(this->loading_radius); y++)
+    for (int z = -(int)(this->loading_radius); z <= (int)(this->loading_radius); z++)
     {
         this->send_data(Vector3Int(x, y, z) + this->world_center);
     }
@@ -201,7 +208,7 @@ void World::send_data(Vector3Int chunk_pos_modified) {
         
             for (int i = FIRST_CHUNK_INDEX; i < FIRST_CHUNK_INDEX + __pow3(this->loading_radius * 2 + 1); i++)
             {
-                if (this->GPU_root_indexes[i] > this->GPU_root_indexes[chunk->GPU_index]) this->GPU_root_indexes[i] += new_size - old_size;
+                if (this->GPU_root_indexes[i] > this->GPU_root_indexes[chunk->GPU_index]) this->GPU_root_indexes[i] += (int)new_size - (int)old_size;
             }
             
             index_buffer.set_data((FIRST_CHUNK_INDEX + __pow3(this->loading_radius * 2 + 1)) * sizeof(unsigned int), this->GPU_root_indexes);

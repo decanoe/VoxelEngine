@@ -78,7 +78,7 @@ void GrowableBuffer::set_data(GLsizeiptr offset, GLsizeiptr size, const void *da
         return;
     }
     
-    const void* old_data = glMapNamedBufferRange(this->buffer_id, 0, offset, GL_MAP_READ_BIT );
+    const void* old_data = glMapNamedBufferRange(this->buffer_id, 0, offset, GL_MAP_READ_BIT);
     glUnmapNamedBuffer(this->buffer_id);
 
     glNamedBufferData(this->buffer_id, offset + size + this->buffer_added_storage, NULL, GL_DYNAMIC_DRAW); // reinitialize the buffer to the right size
