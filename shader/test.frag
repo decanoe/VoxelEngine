@@ -6,7 +6,24 @@ in vec4 gl_FragCoord;
 
 uniform vec2 WindowSize;
 uniform float time; // within [0, 1000] in seconds
+
+uniform vec3 player_position;
+uniform vec3 player_target;
+uniform float facing_pitch;
+uniform float facing_yaw;
+uniform float FOV;
+
 const float MAX_DISTANCE = 256;
+
+//#region Materials
+#define AIR 0
+#define GRASS 1
+#define DIRT 2
+#define STONE 3
+#define WATER 4
+#define BUILDING 5
+#define LIGHT 6
+#define START_MATERIAL LIGHT
 
 const struct Material {
     vec3 color;
@@ -27,40 +44,35 @@ const struct Material {
     Material(vec3(1, .3, 0),        0,          1,          0,      vec3(0, 0, 0),             0,            vec3(0, 0, 0),        0),  // building
     Material(vec3(.9, .9, 1),      .8,          1,          0,      vec3(.9, .9, 1),      /*3*/0,            vec3(0, 0, 0),        0)   // light
 );
+#define UNKNOWN_MATERIAL Material(vec3(1, 0, 1), 0, 1, 0, vec3(1, 0, 1), 1, vec3(0), 0)
+Material get_material(uint value) {
+    if (value > START_MATERIAL) return UNKNOWN_MATERIAL;
+    return materials[value];
+}
+//#endregion
 
+//#region Data
 struct Cell {
     uint value;
     uint sub_cell[8];
 };
-layout(std430, binding = 1) readonly buffer world_data_layout
-{
+layout(std430, binding = 1) readonly buffer world_data_layout {
     Cell world_data[];
 };
-layout(std430, binding = 2) readonly buffer world_indexes_layout
-{
+layout(std430, binding = 2) readonly buffer world_indexes_layout {
     uint world_width;
     uint chunk_width;
     uint world_indexes[];
 };
 
-Material get_material(uint value) {
-    if (value > 6) return Material(vec3(1, 0, 1), 0, 1, 0, vec3(1, 0, 1), 1, vec3(0), 0);
-    return materials[value];
-}
-struct CellInfo {
-    Cell cell;
-    uint width;
-    vec3 hit_point;
-    vec3 normal;
-};
 bool in_bounds(vec3 pos) {
     return 
         abs(pos.x) <= chunk_width * ((world_width-1) >> 1) &&
         abs(pos.y) <= chunk_width * ((world_width-1) >> 1) &&
         abs(pos.z) <= chunk_width * ((world_width-1) >> 1);
 }
-CellInfo get_cell_info(vec3 index) {
-    if (!in_bounds(index)) return CellInfo(Cell(0, uint[8](0, 0, 0, 0, 0, 0, 0, 0)), chunk_width, vec3(0, 0, 0), vec3(0, 1, 0));
+uint get_cell_value(vec3 index) {
+    if (!in_bounds(index)) return AIR;
 
     int chunk_x = int(floor(index.x / chunk_width));
     int chunk_y = int(floor(index.y / chunk_width));
@@ -73,11 +85,10 @@ CellInfo get_cell_info(vec3 index) {
     chunk_z -= int(world_width) * int(floor(float(chunk_z) / world_width));
 
     uint temp_index = world_width * (world_width * chunk_x + chunk_y) + chunk_z;
-    if (temp_index < 0 || temp_index >= world_width * world_width * world_width)
-        return CellInfo(Cell(0, uint[8](0, 0, 0, 0, 0, 0, 0, 0)), chunk_width, vec3(0, 0, 0), vec3(0, 1, 0));
+    if (temp_index >= world_width * world_width * world_width) return AIR;
 
     uint chunk_index = world_indexes[temp_index];
-    if (chunk_index == 0) return CellInfo(Cell(0, uint[8](0, 0, 0, 0, 0, 0, 0, 0)), chunk_width, vec3(0, 0, 0), vec3(0, 1, 0));
+    if (chunk_index == 0) return AIR;
     chunk_index -= 1;
     uint cell_offset = 0;
 
@@ -104,10 +115,11 @@ CellInfo get_cell_info(vec3 index) {
         z %= current_cell_width;
     }
 
-    Cell cell = world_data[chunk_index + cell_offset];
-    return CellInfo(cell, current_cell_width, vec3(0, 0, 0), vec3(0, 1, 0));
+    return world_data[chunk_index + cell_offset].value;
 }
+//#endregion
 
+//#region graphic functions
 float amplify_01(float v) {
     return 1 - (1 - v)*(1 - v)*(1 - v);
 }
@@ -117,85 +129,8 @@ float gaussian(float v) {
 float smooth_sign(float v) {
     return v / (1 + abs(v));
 }
-
-mat3 rotation_matrix(vec3 axis, float angle) {
-    axis = normalize(axis);
-    float s = sin(angle);
-    float c = cos(angle);
-    float oc = 1.0 - c;
-
-    return mat3(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,
-                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,
-                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c          );
-}
-
-uniform float facing_pitch;
-uniform float facing_yaw;
-uniform float FOV;
-vec3 get_direction() {
-    float x = (gl_FragCoord.x / WindowSize.x - 0.5) * 2;
-    float y = (gl_FragCoord.y / WindowSize.y - 0.5) * 2;
-    float aspect = WindowSize.x / WindowSize.y;
-
-    vec3 direction = normalize(vec3(
-        1 / tan(FOV / 2),
-        aspect * x,
-        y
-    ));
-    direction = rotation_matrix(vec3(0, 1, 0), facing_pitch) * direction;
-    direction = rotation_matrix(vec3(0, 0, 1), -facing_yaw) * direction;
-    return direction;
-
-
-    // float x = gl_FragCoord.x + 0.5;
-    // float y = gl_FragCoord.y + 0.5;
-    // float aspect = WindowSize.x / WindowSize.y;
-
-    // vec3 direction = normalize(vec3(
-    //     1 / tan(FOV / 2),
-    //     aspect * (2 * x / WindowSize.x) - 1,
-    //     (2 * y / WindowSize.y) - 1
-    // ));
-    // direction = rotation_matrix(vec3(0, 1, 0), facing_pitch) * direction;
-    // direction = rotation_matrix(vec3(0, 0, 1), -facing_yaw) * direction;
-    // return direction;
-}
-CellInfo get_next_cell(uint cell_size, vec3 position, vec3 direction) {
-    vec3 pos_in_cell = mod(position / cell_size, 1.0); // in [0, 1[
-    if (direction.x < 0 && pos_in_cell.x == 0) pos_in_cell.x = 1; // avoid being trap on the edge
-    if (direction.y < 0 && pos_in_cell.y == 0) pos_in_cell.y = 1; // avoid being trap on the edge
-    if (direction.z < 0 && pos_in_cell.z == 0) pos_in_cell.z = 1; // avoid being trap on the edge
-    
-    float step_size = 3;
-    vec3 cell_jump = vec3(sign(direction.x), 0, 0);
-    if (direction.x > 0) step_size = (1 - pos_in_cell.x) / direction.x;
-    else if (direction.x < 0) step_size = -pos_in_cell.x / direction.x;
-    
-    float temp_step = 3;
-    if (direction.y > 0) temp_step = (1 - pos_in_cell.y) / direction.y;
-    else if (direction.y < 0) temp_step = -pos_in_cell.y / direction.y;
-    if (temp_step < step_size) {
-        step_size = temp_step;
-        cell_jump = vec3(0, sign(direction.y), 0);
-    }
-    
-    temp_step = 3;
-    if (direction.z > 0) temp_step = (1 - pos_in_cell.z) / direction.z;
-    else if (direction.z < 0) temp_step = -pos_in_cell.z / direction.z;
-    if (temp_step < step_size) {
-        step_size = temp_step;
-        cell_jump = vec3(0, 0, sign(direction.z));
-    }
-
-    position += direction * step_size * cell_size;
-
-    CellInfo result = get_cell_info(floor(position + 0.1 * cell_jump));
-    result.hit_point = position;
-    result.normal = -cell_jump;
-
-    return result;
-}
-
+//#endregion
+//#region noise
 uint hash( uint x ) {
     x += ( x << 10u );
     x ^= ( x >>  6u );
@@ -275,6 +210,36 @@ float perlin(vec3 pos, uint occ, float min_v, float max_v) {
     }
     return clamp(v * (max_v - min_v) + min_v, min_v, max_v);
 }
+//#endregion
+
+//#region Direction
+mat3 rotation_matrix(vec3 axis, float angle) {
+    axis = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+
+    return mat3(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,
+                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,
+                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c          );
+}
+
+vec3 get_direction() {
+    float x = (gl_FragCoord.x / WindowSize.x - 0.5) * 2;
+    float y = (gl_FragCoord.y / WindowSize.y - 0.5) * 2;
+    float aspect = WindowSize.x / WindowSize.y;
+
+    vec3 direction = normalize(vec3(
+        1 / tan(FOV / 2),
+        aspect * x,
+        y
+    ));
+    direction = rotation_matrix(vec3(0, 1, 0), facing_pitch) * direction;
+    direction = rotation_matrix(vec3(0, 0, 1), -facing_yaw) * direction;
+    return direction;
+}
+//#endregion
+
 
 vec3 bump(vec3 normal, vec3 pos, float strength, float size, uint detail) {
     pos -= normal * dot(normal, pos);
@@ -290,139 +255,206 @@ vec3 bump(vec3 normal, vec3 pos, float strength, float size, uint detail) {
     return normalize(normal + (perlin(pos.xyz / size, detail, -1, 1) * left + perlin(pos.yxz / size, detail, -1, 1) * forward) * strength);
 }
 
-uniform vec3 player_position;
-uniform vec3 player_target;
 
-float chunk_edge_distance(vec3 pos) {
-    vec3 pos_in_chunk = mod(pos / chunk_width, 1.0); // in [0, 1]
-    pos_in_chunk = pos_in_chunk * 2 - vec3(1, 1, 1); // in [-1, 1] with 0 in center
-    pos_in_chunk = abs(pos_in_chunk);
-    float corner_strenght = max(pos_in_chunk.x, max(pos_in_chunk.y, pos_in_chunk.z)); // in [0, 1] with 1 on the edges
 
-    // return 0;
-    return corner_strenght;
-}
-vec4 compute_color(CellInfo cell_info) {
-    float edge = pow(chunk_edge_distance(cell_info.hit_point), 4);
-    edge = min(0.75, edge);
 
-    Material material = get_material(cell_info.cell.value);
 
-    vec4 color = vec4(mix(material.color, vec3(1, 1, 1), edge), 1);
 
-    vec4 random_color = vec4(1,1,1,1);
-    vec3 p = floor(cell_info.hit_point / cell_info.width) * cell_info.width;
-    random_color.x = floatConstruct(hash(uvec3(floor(p.xyz))));
-    random_color.y = floatConstruct(hash(uvec3(floor(p.yzx))));
-    random_color.z = floatConstruct(hash(uvec3(floor(p.zxy))));
-    color = mix(color, random_color, 0.1);
+struct RaycastHit {
+    uint value;
+    vec3 hit_point;
+    vec3 normal;
 
-    if (floor(cell_info.hit_point - cell_info.normal * 0.1) == floor(player_target))
-        color = mix(color, vec4(1, 1, 1, 1), 0.5);
+    uint step_taken;
+};
+RaycastHit raycast(vec3 direction, vec3 start_position, uint max_step, float max_dist, uint ignored_material) {
+    //#region initialize steps
+    vec3[3] next_pos = vec3[3](vec3(0), vec3(0), vec3(0));
+    vec3[3] steps = vec3[3](vec3(0), vec3(0), vec3(0));
+    float[3] next_dists = float[3](0, 0, 0);
+    float[3] steps_sizes = float[3](0, 0, 0);
 
-    float light = clamp(-dot(cell_info.normal, normalize(vec3(-2, -4, -8))), 0.25, 1);
-    // color.xyz = mix(color.xyz * light, material.emision_color, material.emision_strength);
-    color.xyz = (color.xyz + material.emision_color * material.emision_strength)* light;
-    
-    float dist = distance(player_position, cell_info.hit_point); // [0; +inf[
-    dist = clamp(1 - dist / MAX_DISTANCE, 0, 1); // [0; 1[ with 1 near player
-    color.w = dist;
+    vec3 pos_in_cell = mod(start_position, 1.0);
+    if (direction.x < 0 && pos_in_cell.x == 0) pos_in_cell.x = 1; // avoid being trap on the edge
+    if (direction.y < 0 && pos_in_cell.y == 0) pos_in_cell.y = 1; // avoid being trap on the edge
+    if (direction.z < 0 && pos_in_cell.z == 0) pos_in_cell.z = 1; // avoid being trap on the edge
 
-    return color;
-}
-
-vec3 raycast(vec3 direction, vec3 start_position) {
-    vec4 final_color = vec4(0, 0, 0, 0);
-    uint coord_offset = 1;
-
-    if (start_position.x == floor(start_position.x)) start_position.x += 0.001;
-    if (start_position.y == floor(start_position.y)) start_position.y += 0.001;
-    if (start_position.z == floor(start_position.z)) start_position.z += 0.001;
-
-    CellInfo cell_info = get_cell_info(floor(start_position));
-    uint start_cell_type = cell_info.cell.value;
-    float current_ior = 1;
-
-    cell_info.hit_point = start_position;
-    if (cell_info.cell.value != 0 && in_bounds(start_position)) {
-        float x = (gl_FragCoord.x - WindowSize.x / 2) / (WindowSize.x / 2);
-        float y = (gl_FragCoord.y - WindowSize.y / 2) / (WindowSize.y / 2);
-        Material material = get_material(cell_info.cell.value);
-        final_color = vec4(material.color, 1) * min(0.1 + (x*x+y*y) / 2, 1) * (1 - material.transparency);
-
-        current_ior = material.ior;
-    }
-
-    uint max_iter = uint(ceil(MAX_DISTANCE / 2));
-    float max_dist = MAX_DISTANCE;
-    for (int i = 0; i < max_iter; i++) {
-        if (distance(start_position, cell_info.hit_point) > max_dist) break;
+    //#region initialize X
+    if (abs(direction.x) > 0.001) {
+        steps[0] = direction / abs(direction.x);
+        steps_sizes[0] = 1 / abs(direction.x);
         
-        cell_info = get_next_cell(cell_info.width, cell_info.hit_point, direction);
+        if (direction.x > 0) next_pos[0] = start_position + (1 - pos_in_cell.x) * steps[0];
+        else next_pos[0] = start_position + pos_in_cell.x * steps[0];
+        
+        next_dists[0] = distance(next_pos[0], start_position);
+    }
+    else {
+        next_dists[0] = MAX_DISTANCE * 2;
+    }
+    //#endregion
+    //#region initialize Y
+    if (abs(direction.y) > 0.001) {
+        steps[1] = direction / abs(direction.y);
+        steps_sizes[1] = 1 / abs(direction.y);
+        
+        if (direction.y > 0) next_pos[1] = start_position + (1 - pos_in_cell.y) * steps[1];
+        else next_pos[1] = start_position + pos_in_cell.y * steps[1];
+        
+        next_dists[1] = distance(next_pos[1], start_position);
+    }
+    else {
+        next_dists[1] = MAX_DISTANCE * 2;
+    }
+    //#endregion
+    //#region initialize Z
+    if (abs(direction.z) > 0.001) {
+        steps[2] = direction / abs(direction.z);
+        steps_sizes[2] = 1 / abs(direction.z);
+        
+        if (direction.z > 0) next_pos[2] = start_position + (1 - pos_in_cell.z) * steps[2];
+        else next_pos[2] = start_position + pos_in_cell.z * steps[2];
+        
+        next_dists[2] = distance(next_pos[2], start_position);
+    }
+    else {
+        next_dists[2] = MAX_DISTANCE * 2;
+    }
+    //#endregion
+    //#endregion
 
-        if (cell_info.cell.value != start_cell_type && in_bounds(cell_info.hit_point - cell_info.normal * 0.01)) {
-            final_color += vec4(get_material(start_cell_type).volume_color, 1) * (1 - final_color.w) * smooth_sign(get_material(start_cell_type).volume * distance(start_position, cell_info.hit_point));
+    uint nb_steps = 0;
+    vec3 cell_pos = floor(start_position);
+    vec3 position = start_position;
+    vec3 normal = -direction;
+    float distance = 0;
+    while (nb_steps < max_step && distance < max_dist) {
+        nb_steps++;
 
-            max_dist -= distance(start_position, cell_info.hit_point);
-            start_position = cell_info.hit_point;
+        uint value = get_cell_value(cell_pos);
+        if (value != ignored_material)
+            return RaycastHit(value, position, normal, nb_steps);
 
-            vec3 true_normal = cell_info.normal;
-            if (cell_info.cell.value == 4 /*INTO WATER*/) {
-                cell_info.normal = bump(cell_info.normal, cell_info.hit_point + vec3(time * 0.5, time, 0), 0.05, 1, 2);
-            }
-            if (start_cell_type == 4 /*OUT OF WATER*/) {
-                cell_info.normal = bump(cell_info.normal, cell_info.hit_point + vec3(time * 0.5, time, 0), -0.05, 1, 2);
-            }
-            Material material = get_material(cell_info.cell.value);
-
-            bool refraction_ray = material.transparency != 0;
-            bool reflection_ray = material.reflection != 0;
-            
-            if (refraction_ray && dot(cell_info.normal, direction) >= 0) {
-                refraction_ray = false;
-            }
-            else if (refraction_ray && refract(direction, cell_info.normal, current_ior / material.ior) == vec3(0)) { // switch to inner refraction
-                refraction_ray = false;
-                reflection_ray = true;
-                material = get_material(start_cell_type);
-            }
-            else if (refraction_ray && reflection_ray) {
-                coord_offset *= 2;
-                refraction_ray = int(gl_FragCoord.x+gl_FragCoord.y) % coord_offset < coord_offset / 2;
-                reflection_ray = ! refraction_ray;
-            }
-
-            if (refraction_ray) {
-                start_cell_type = cell_info.cell.value;
-                final_color += compute_color(cell_info) * (1 - final_color.w) * (1 - material.transparency);
-
-                direction = refract(direction, cell_info.normal, current_ior / material.ior);
-                cell_info.hit_point -= true_normal * 0.01;
-                current_ior = material.ior;
-
-                continue;
-            }
-            else if (reflection_ray) {
-                final_color += compute_color(cell_info) * (1 - final_color.w) * (1 - material.reflection);
-
-                direction = reflect(direction, cell_info.normal);
-                cell_info.hit_point += true_normal * 0.01;
-                cell_info.width = 1;
-
-                continue;
-            }
-
-            final_color += compute_color(cell_info) * (1 - final_color.w);
-            break;
+        if (next_dists[0] < min(next_dists[1], next_dists[2])) {
+            cell_pos.x += sign(direction.x);
+            position = next_pos[0];
+            normal = vec3(-sign(direction.x), 0, 0);
+            distance = next_dists[0];
+            next_dists[0] += steps_sizes[0];
+            next_pos[0] += steps[0];
+        }
+        else if (next_dists[1] < min(next_dists[0], next_dists[2])) {
+            cell_pos.y += sign(direction.y);
+            position = next_pos[1];
+            normal = vec3(0, -sign(direction.y), 0);
+            distance = next_dists[1];
+            next_dists[1] += steps_sizes[1];
+            next_pos[1] += steps[1];
+        }
+        else if (next_dists[2] < min(next_dists[0], next_dists[1])) {
+            cell_pos.z += sign(direction.z);
+            position = next_pos[2];
+            normal = vec3(0, 0, -sign(direction.z));
+            distance = next_dists[2];
+            next_dists[2] += steps_sizes[2];
+            next_pos[2] += steps[2];
         }
     }
-    final_color += vec4(get_material(start_cell_type).volume_color, 1) * (1 - final_color.w) * smooth_sign(get_material(start_cell_type).volume * max_dist);
 
+    return RaycastHit(AIR, start_position + direction * MAX_DISTANCE, -direction, max_step);
+}
+
+vec3 get_color() {
+    vec3 direction = get_direction();
+    uint step_left = uint(ceil(MAX_DISTANCE));
+    float dist_left = MAX_DISTANCE;
+    vec3 pos = player_position + direction * 0.5;
+    uint start_value = get_cell_value(player_position);
+    Material start_material = get_material(start_value);
+
+    vec4 final_color = vec4(0, 0, 0, 0);
+
+    uint coord_offset = 1;
+
+    while(true) {
+        RaycastHit hit = raycast(direction, pos, step_left, dist_left, start_value);
+        step_left -= hit.step_taken;
+        if (step_left <= 0) break;
+        dist_left -= distance(pos, hit.hit_point);
+
+        // add material volume
+        final_color += vec4(start_material.volume_color, 1) * (1 - final_color.w) * smooth_sign(start_material.volume * distance(pos, hit.hit_point));
+        pos = hit.hit_point;
+
+
+        Material hit_material = get_material(hit.value);
+
+        vec3 modified_normals = hit.normal;
+        //#region water normals
+        if (hit.value == WATER /*INTO WATER*/) {
+            modified_normals = bump(modified_normals, pos + vec3(time * 0.5, time, 0), 0.05, 1, 2);
+        }
+        else if (start_value == WATER /*OUT OF WATER*/) {
+            modified_normals = bump(modified_normals, pos + vec3(time * 0.5, time, 0), -0.05, 1, 2);
+        }
+        //#endregion
+
+        bool transparent_ray = hit_material.transparency != 0;
+        bool reflection_ray = hit_material.reflection != 0;
+        //#region transparency reflection conflict
+        if (transparent_ray && refract(direction, modified_normals, start_material.ior / hit_material.ior) == vec3(0)) { // switch to inner refraction
+            transparent_ray = false;
+            reflection_ray = true;
+            hit_material = start_material;
+        }
+        else if (transparent_ray && reflection_ray) {
+            coord_offset *= 2;
+            transparent_ray = int(gl_FragCoord.x+gl_FragCoord.y) % coord_offset < coord_offset / 2;
+            reflection_ray = !transparent_ray;
+        }
+        //#endregion
+
+        //#region compute hit_color
+        vec4 hit_color = vec4(hit_material.color, 1);
+        if (floor(hit.hit_point - hit.normal * 0.1) == floor(player_target)) hit_color = mix(hit_color, vec4(1, 1, 1, 1), 0.5);
+
+        float light = clamp(-dot(hit.normal, normalize(vec3(-2, -4, -8))), 0.25, 1);
+        hit_color.xyz = (hit_color.xyz + hit_material.emision_color * hit_material.emision_strength) * light;
+        //#endregion
+
+        if (transparent_ray) {
+            start_value = hit.value;
+            final_color += hit_color * (1 - final_color.w) * (1 - hit_material.transparency);
+
+            direction = refract(direction, modified_normals, start_material.ior / hit_material.ior);
+            pos -= hit.normal * 0.01;
+        }
+        else if (reflection_ray) {
+            final_color += hit_color * (1 - final_color.w) * (1 - hit_material.reflection);
+
+            direction = reflect(direction, modified_normals);
+            pos += hit.normal * 0.01;
+        }
+        else {
+            final_color += hit_color * (1 - final_color.w);
+            break;
+        }
+        start_material = hit_material;
+    }
+
+    // last unused volume
+    final_color += vec4(start_material.volume_color, 1) * (1 - final_color.w);// * smooth_sign(start_material.volume * distance(pos, hit.hit_point));
+
+    // fill empty color with skybox
     vec3 sky_color = vec3(0, 0.75, 1) * 2;
     final_color.xyz = mix(sky_color, final_color.xyz, final_color.w);
 
     return final_color.xyz;
 }
+
+
+
+
 
 
 void main()
@@ -433,7 +465,6 @@ void main()
     if (abs(x) <= 1 && abs(y) <= 32 || abs(y) <= 1 && abs(x) <= 32) // cross
         LFragment = vec4(1.0, 1.0, 1.0, 1.0);
     else {
-        vec3 direction = get_direction();
-        LFragment = vec4(raycast(direction, player_position + direction * 0.5), 1.0);
+        LFragment = vec4(get_color(), 1.0);
     }
 }

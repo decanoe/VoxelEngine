@@ -16,7 +16,7 @@ const int SCREEN_HEIGHT = 768;
 #define WORLD_INDEX_BUFFER_BINDING 2
 
 #define PLAYER_SPEED 8
-#define LOADING_RADIUS 3
+#define LOADING_RADIUS 5
 
 int main(int argc, char *args[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
