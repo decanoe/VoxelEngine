@@ -355,7 +355,9 @@ vec3 raycast(vec3 direction, vec3 start_position) {
 
     uint max_iter = uint(ceil(MAX_DISTANCE / 2));
     float max_dist = MAX_DISTANCE;
+    int iter = 0;
     for (int i = 0; i < max_iter; i++) {
+        iter = i;
         if (distance(start_position, cell_info.hit_point) > max_dist) break;
         
         cell_info = get_next_cell(cell_info.width, cell_info.hit_point, direction);
@@ -421,12 +423,25 @@ vec3 raycast(vec3 direction, vec3 start_position) {
     vec3 sky_color = vec3(0, 0.75, 1) * 2;
     final_color.xyz = mix(sky_color, final_color.xyz, final_color.w);
 
+    float v = iter / (ceil(MAX_DISTANCE / 2));
+    return vec3(v, v, v);
     return final_color.xyz;
 }
 
+uniform float deltatime;
 
 void main()
 {
+    int fps = int(round(1 / max(1/120, deltatime)));
+    if (gl_FragCoord.x < 10 && gl_FragCoord.y < fps * (WindowSize.y / 120)) {
+        if (fps >= 60) LFragment = vec4(0, 1, 0, 1.0);
+        else if (fps >= 30) LFragment = vec4(1, 1, 0, 1.0);
+        else if (fps >= 15) LFragment = vec4(1, 0, 0, 1.0);
+        else LFragment = vec4(0, 0, 0, 1.0);
+
+        return;
+    }
+
     float x = gl_FragCoord.x - WindowSize.x / 2;
     float y = gl_FragCoord.y - WindowSize.y / 2;
 

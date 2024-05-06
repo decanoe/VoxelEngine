@@ -6,6 +6,7 @@ in vec4 gl_FragCoord;
 
 uniform vec2 WindowSize;
 uniform float time; // within [0, 1000] in seconds
+uniform float deltatime;
 
 uniform vec3 player_position;
 uniform vec3 player_target;
@@ -14,6 +15,8 @@ uniform float facing_yaw;
 uniform float FOV;
 
 const float MAX_DISTANCE = 256;
+const int MAX_ITER = int(ceil(MAX_DISTANCE / 2));
+const uint MAX_BOUNCE = 3;
 
 //#region Materials
 #define AIR 0
@@ -71,8 +74,9 @@ bool in_bounds(vec3 pos) {
         abs(pos.y) <= chunk_width * ((world_width-1) >> 1) &&
         abs(pos.z) <= chunk_width * ((world_width-1) >> 1);
 }
-uint get_cell_value(vec3 index) {
-    if (!in_bounds(index)) return AIR;
+struct ValueSize { uint value; uint size; };
+ValueSize get_cell_value(vec3 index) {
+    if (!in_bounds(index)) return ValueSize(AIR, chunk_width);
 
     int chunk_x = int(floor(index.x / chunk_width));
     int chunk_y = int(floor(index.y / chunk_width));
@@ -85,10 +89,10 @@ uint get_cell_value(vec3 index) {
     chunk_z -= int(world_width) * int(floor(float(chunk_z) / world_width));
 
     uint temp_index = world_width * (world_width * chunk_x + chunk_y) + chunk_z;
-    if (temp_index >= world_width * world_width * world_width) return AIR;
+    if (temp_index >= world_width * world_width * world_width) return ValueSize(AIR, chunk_width);
 
     uint chunk_index = world_indexes[temp_index];
-    if (chunk_index == 0) return AIR;
+    if (chunk_index == 0) return ValueSize(AIR, chunk_width);
     chunk_index -= 1;
     uint cell_offset = 0;
 
@@ -115,7 +119,7 @@ uint get_cell_value(vec3 index) {
         z %= current_cell_width;
     }
 
-    return world_data[chunk_index + cell_offset].value;
+    return ValueSize(world_data[chunk_index + cell_offset].value, current_cell_width);
 }
 //#endregion
 
@@ -265,14 +269,22 @@ struct RaycastHit {
     vec3 hit_point;
     vec3 normal;
 
-    uint step_taken;
+    int step_taken;
 };
-RaycastHit raycast(vec3 direction, vec3 start_position, uint max_step, float max_dist, uint ignored_material) {
+RaycastHit raycast(vec3 direction, vec3 start_position, int max_step, float max_dist, uint ignored_material) {
     //#region initialize steps
-    vec3[3] next_pos = vec3[3](vec3(0), vec3(0), vec3(0));
-    vec3[3] steps = vec3[3](vec3(0), vec3(0), vec3(0));
-    float[3] next_dists = float[3](0, 0, 0);
-    float[3] steps_sizes = float[3](0, 0, 0);
+    vec3 next_pos_X = vec3(0);
+    vec3 next_pos_Y = vec3(0);
+    vec3 next_pos_Z = vec3(0);
+    vec3 step_X = vec3(0);
+    vec3 step_Y = vec3(0);
+    vec3 step_Z = vec3(0);
+    float next_dist_X = 0;
+    float next_dist_Y = 0;
+    float next_dist_Z = 0;
+    float step_size_X = 0;
+    float step_size_Y = 0;
+    float step_size_Z = 0;
 
     vec3 pos_in_cell = mod(start_position, 1.0);
     if (direction.x < 0 && pos_in_cell.x == 0) pos_in_cell.x = 1; // avoid being trap on the edge
@@ -281,106 +293,113 @@ RaycastHit raycast(vec3 direction, vec3 start_position, uint max_step, float max
 
     //#region initialize X
     if (abs(direction.x) > 0.001) {
-        steps[0] = direction / abs(direction.x);
-        steps_sizes[0] = 1 / abs(direction.x);
+        step_X = direction / abs(direction.x);
+        step_size_X = 1 / abs(direction.x);
         
-        if (direction.x > 0) next_pos[0] = start_position + (1 - pos_in_cell.x) * steps[0];
-        else next_pos[0] = start_position + pos_in_cell.x * steps[0];
+        if (direction.x > 0) next_pos_X = start_position + (1 - pos_in_cell.x) * step_X;
+        else next_pos_X = start_position + pos_in_cell.x * step_X;
         
-        next_dists[0] = distance(next_pos[0], start_position);
+        next_dist_X = distance(next_pos_X, start_position);
     }
     else {
-        next_dists[0] = MAX_DISTANCE * 2;
+        next_dist_X = MAX_DISTANCE * 2;
     }
     //#endregion
     //#region initialize Y
     if (abs(direction.y) > 0.001) {
-        steps[1] = direction / abs(direction.y);
-        steps_sizes[1] = 1 / abs(direction.y);
+        step_Y = direction / abs(direction.y);
+        step_size_Y = 1 / abs(direction.y);
         
-        if (direction.y > 0) next_pos[1] = start_position + (1 - pos_in_cell.y) * steps[1];
-        else next_pos[1] = start_position + pos_in_cell.y * steps[1];
+        if (direction.y > 0) next_pos_Y = start_position + (1 - pos_in_cell.y) * step_Y;
+        else next_pos_Y = start_position + pos_in_cell.y * step_Y;
         
-        next_dists[1] = distance(next_pos[1], start_position);
+        next_dist_Y = distance(next_pos_Y, start_position);
     }
     else {
-        next_dists[1] = MAX_DISTANCE * 2;
+        next_dist_Y = MAX_DISTANCE * 2;
     }
     //#endregion
     //#region initialize Z
     if (abs(direction.z) > 0.001) {
-        steps[2] = direction / abs(direction.z);
-        steps_sizes[2] = 1 / abs(direction.z);
+        step_Z = direction / abs(direction.z);
+        step_size_Z = 1 / abs(direction.z);
         
-        if (direction.z > 0) next_pos[2] = start_position + (1 - pos_in_cell.z) * steps[2];
-        else next_pos[2] = start_position + pos_in_cell.z * steps[2];
+        if (direction.z > 0) next_pos_Z = start_position + (1 - pos_in_cell.z) * step_Z;
+        else next_pos_Z = start_position + pos_in_cell.z * step_Z;
         
-        next_dists[2] = distance(next_pos[2], start_position);
+        next_dist_Z = distance(next_pos_Z, start_position);
     }
     else {
-        next_dists[2] = MAX_DISTANCE * 2;
+        next_dist_Z = MAX_DISTANCE * 2;
     }
     //#endregion
     //#endregion
 
-    uint nb_steps = 0;
+    int nb_steps = 0;
     vec3 cell_pos = floor(start_position);
     vec3 position = start_position;
     vec3 normal = -direction;
     float distance = 0;
+
+    ValueSize vs = get_cell_value(cell_pos);
+    if (vs.value != ignored_material) return RaycastHit(vs.value, position, normal, nb_steps);
+    vec3 last_cell_pos = cell_pos;
+
     while (nb_steps < max_step && distance < max_dist) {
-        nb_steps++;
 
-        uint value = get_cell_value(cell_pos);
-        if (value != ignored_material)
-            return RaycastHit(value, position, normal, nb_steps);
+        if (floor(cell_pos / vs.size) != floor(last_cell_pos / vs.size)) {
+            nb_steps++;
+            vs = get_cell_value(cell_pos);
+            if (vs.value != ignored_material) return RaycastHit(vs.value, position, normal, nb_steps);
+            last_cell_pos = cell_pos;
+        }
 
-        if (next_dists[0] < min(next_dists[1], next_dists[2])) {
+        if (next_dist_X <= next_dist_Y && next_dist_X <= next_dist_Z) {
             cell_pos.x += sign(direction.x);
-            position = next_pos[0];
+            position = next_pos_X;
             normal = vec3(-sign(direction.x), 0, 0);
-            distance = next_dists[0];
-            next_dists[0] += steps_sizes[0];
-            next_pos[0] += steps[0];
+            distance = next_dist_X;
+            next_dist_X += step_size_X;
+            next_pos_X += step_X;
         }
-        else if (next_dists[1] < min(next_dists[0], next_dists[2])) {
+        else if (next_dist_Y <= next_dist_Z) {
             cell_pos.y += sign(direction.y);
-            position = next_pos[1];
+            position = next_pos_Y;
             normal = vec3(0, -sign(direction.y), 0);
-            distance = next_dists[1];
-            next_dists[1] += steps_sizes[1];
-            next_pos[1] += steps[1];
+            distance = next_dist_Y;
+            next_dist_Y += step_size_Y;
+            next_pos_Y += step_Y;
         }
-        else if (next_dists[2] < min(next_dists[0], next_dists[1])) {
+        else {
             cell_pos.z += sign(direction.z);
-            position = next_pos[2];
+            position = next_pos_Z;
             normal = vec3(0, 0, -sign(direction.z));
-            distance = next_dists[2];
-            next_dists[2] += steps_sizes[2];
-            next_pos[2] += steps[2];
+            distance = next_dist_Z;
+            next_dist_Z += step_size_Z;
+            next_pos_Z += step_Z;
         }
     }
 
-    return RaycastHit(AIR, start_position + direction * MAX_DISTANCE, -direction, max_step);
+    return RaycastHit(AIR, start_position + direction * MAX_DISTANCE, -direction, nb_steps);
 }
 
 vec3 get_color() {
     vec3 direction = get_direction();
-    uint step_left = uint(ceil(MAX_DISTANCE));
+    int step_left = MAX_ITER;
     float dist_left = MAX_DISTANCE;
     vec3 pos = player_position + direction * 0.5;
-    uint start_value = get_cell_value(player_position);
+    uint start_value = get_cell_value(player_position).value;
     Material start_material = get_material(start_value);
 
     vec4 final_color = vec4(0, 0, 0, 0);
 
     uint coord_offset = 1;
 
-    while(true) {
+    for (uint b = 0; b <= MAX_BOUNCE; b++) {
         RaycastHit hit = raycast(direction, pos, step_left, dist_left, start_value);
         step_left -= hit.step_taken;
-        if (step_left <= 0) break;
         dist_left -= distance(pos, hit.hit_point);
+        if (step_left <= 0 || dist_left <= 0) break;
 
         // add material volume
         final_color += vec4(start_material.volume_color, 1) * (1 - final_color.w) * smooth_sign(start_material.volume * distance(pos, hit.hit_point));
@@ -405,7 +424,6 @@ vec3 get_color() {
         if (transparent_ray && refract(direction, modified_normals, start_material.ior / hit_material.ior) == vec3(0)) { // switch to inner refraction
             transparent_ray = false;
             reflection_ray = true;
-            hit_material = start_material;
         }
         else if (transparent_ray && reflection_ray) {
             coord_offset *= 2;
@@ -423,11 +441,13 @@ vec3 get_color() {
         //#endregion
 
         if (transparent_ray) {
-            start_value = hit.value;
             final_color += hit_color * (1 - final_color.w) * (1 - hit_material.transparency);
 
             direction = refract(direction, modified_normals, start_material.ior / hit_material.ior);
             pos -= hit.normal * 0.01;
+
+            start_value = hit.value;
+            start_material = hit_material;
         }
         else if (reflection_ray) {
             final_color += hit_color * (1 - final_color.w) * (1 - hit_material.reflection);
@@ -439,7 +459,6 @@ vec3 get_color() {
             final_color += hit_color * (1 - final_color.w);
             break;
         }
-        start_material = hit_material;
     }
 
     // last unused volume
@@ -459,6 +478,16 @@ vec3 get_color() {
 
 void main()
 {
+    int fps = int(round(1 / max(1/120, deltatime)));
+    if (gl_FragCoord.x < 10 && gl_FragCoord.y < fps * (WindowSize.y / 120)) {
+        if (fps >= 60) LFragment = vec4(0, 1, 0, 1.0);
+        else if (fps >= 30) LFragment = vec4(1, 1, 0, 1.0);
+        else if (fps >= 15) LFragment = vec4(1, 0, 0, 1.0);
+        else LFragment = vec4(0, 0, 0, 1.0);
+
+        return;
+    }
+
     float x = gl_FragCoord.x - WindowSize.x / 2;
     float y = gl_FragCoord.y - WindowSize.y / 2;
 
