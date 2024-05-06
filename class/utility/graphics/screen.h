@@ -31,7 +31,7 @@ public:
 
     Screen(unsigned int width, unsigned int height);
     void close();
-    void setup_base_shaders();
+    void setup_base_shaders(const GLchar* render_shader);
 
     SDL_Window* get_window();
 

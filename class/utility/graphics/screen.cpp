@@ -30,7 +30,7 @@ Screen::Screen(unsigned int width, unsigned int height)
     }
 }
 
-void Screen::setup_base_shaders() {
+void Screen::setup_base_shaders(const GLchar* render_shader) {
     this->context = SDL_GL_CreateContext(window);
     if (!context) {
         std::cerr << "SDL OpenGL context creation failed: " << SDL_GetError() << std::endl;
@@ -39,7 +39,7 @@ void Screen::setup_base_shaders() {
     init_OpenGL();
 
     //Initialize OpenGL
-    if (!initGL(&this->gProgramID, &this->gVertexPos2DLocation, &this->gVBO, &this->gIBO, this->vertex_shader_source, this->fragment_shader_source)) {
+    if (!initGL(&this->gProgramID, &this->gVertexPos2DLocation, &this->gVBO, &this->gIBO, this->vertex_shader_source, this->fragment_shader_source, render_shader)) {
         std::cerr << "Unable to initialize OpenGL!" << std::endl;
         exit(EXIT_FAILURE);
     }

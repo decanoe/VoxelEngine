@@ -83,14 +83,14 @@ void printShaderLog(GLuint shader) {
         printf("Name %d is not a shader\n", shader);
     }
 }
-bool initGL(GLuint *gProgramID, GLint *gVertexPos2DLocation, GLuint *gVBO, GLuint *gIBO, std::string& vertex_shader_source, std::string& fragment_shader_source) {
+bool initGL(GLuint *gProgramID, GLint *gVertexPos2DLocation, GLuint *gVBO, GLuint *gIBO, std::string& vertex_shader_source, std::string& fragment_shader_source, const GLchar* render_shader) {
     *gProgramID = glCreateProgram();
 
     if (!set_vertex_shader(gProgramID, "./shader/vertex.vert", vertex_shader_source)) {
         return false;
     }
 
-    if (!set_fragment_shader(gProgramID, "./shader/test.frag", fragment_shader_source)) {
+    if (!set_fragment_shader(gProgramID, render_shader, fragment_shader_source)) {
         return false;
     }
 

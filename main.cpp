@@ -24,7 +24,7 @@ int main(int argc, char *args[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
     Screen screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT);
-    screen.setup_base_shaders();
+    screen.setup_base_shaders("./shader/test.frag");
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
     WorldGenerator generator = WorldGenerator(1);
@@ -91,6 +91,8 @@ int main(int argc, char *args[]) {
         double elapsed_seconds = elapsed_time.count();
         deltatime = elapsed_seconds;
         // std::cout << "time to render frame : " << elapsed_seconds << " (fps : " << 1/elapsed_seconds << ")\n";
+        
+        screen.set_uniform("deltatime", deltatime);
     }
 
     world.dispose();

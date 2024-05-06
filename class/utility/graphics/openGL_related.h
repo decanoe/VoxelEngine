@@ -14,7 +14,7 @@ void init_OpenGL();
 void printProgramLog(GLuint program);
 // handling for shader log
 void printShaderLog(GLuint shader);
-bool initGL(GLuint *gProgramID, GLint *gVertexPos2DLocation, GLuint *gVBO, GLuint *gIBO, std::string& vertex_shader_source, std::string& fragment_shader_source);
+bool initGL(GLuint *gProgramID, GLint *gVertexPos2DLocation, GLuint *gVBO, GLuint *gIBO, std::string& vertex_shader_source, std::string& fragment_shader_source, const GLchar* render_shader);
 
 bool set_vertex_shader(GLuint *gProgramID, std::string path, std::string& vertex_shader_source);
 bool set_fragment_shader(GLuint *gProgramID, std::string path, std::string& fragment_shader_source);
