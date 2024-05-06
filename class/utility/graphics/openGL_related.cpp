@@ -25,7 +25,7 @@ void init_OpenGL() {
         exit(1);
     }
     // Use vsync
-    if (SDL_GL_SetSwapInterval(1) < 0) {
+    if (SDL_GL_SetSwapInterval(-1) < 0) {
         std::cerr << "Warning: Unable to set VSync! SDL Error: " << SDL_GetError() << std::endl;
         exit(1);
     }
