@@ -148,4 +148,13 @@ void Screen::update() {
     SDL_GL_SwapWindow(this->window);
 }
 
+
+bool Screen::is_full_screen() {
+    return this->full_screen;
+}
+void Screen::set_full_screen(bool full) {
+    this->full_screen = full;
+    SDL_SetWindowFullscreen(this->window, full ? SDL_WINDOW_FULLSCREEN : 0);
+}
+
 #endif

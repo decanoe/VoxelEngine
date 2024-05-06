@@ -7,6 +7,7 @@ in vec4 gl_FragCoord;
 uniform vec2 WindowSize;
 uniform float time; // within [0, 1000] in seconds
 uniform float deltatime;
+uniform vec3 debug_time;
 
 uniform vec3 player_position;
 uniform vec3 player_target;
@@ -479,11 +480,20 @@ vec3 get_color() {
 void main()
 {
     int fps = int(round(1 / max(1/120, deltatime)));
-    if (gl_FragCoord.x < 10 && gl_FragCoord.y < fps * (WindowSize.y / 120)) {
+    if (gl_FragCoord.x < 5 && gl_FragCoord.y < fps * (WindowSize.y / 120)) {
         if (fps >= 60) LFragment = vec4(0, 1, 0, 1.0);
         else if (fps >= 30) LFragment = vec4(1, 1, 0, 1.0);
         else if (fps >= 15) LFragment = vec4(1, 0, 0, 1.0);
         else LFragment = vec4(0, 0, 0, 1.0);
+
+        return;
+    }
+
+    vec3 d_times = debug_time / (debug_time.x + debug_time.y + debug_time.z) * WindowSize.y;
+    if (gl_FragCoord.x >= 5 && gl_FragCoord.x < 10) {
+        if (gl_FragCoord.y < d_times.x) LFragment = vec4(0, 1, 0, 1.0);
+        else if (gl_FragCoord.y < d_times.x + d_times.y) LFragment = vec4(1, 0, 1, 1.0);
+        else LFragment = vec4(0, 0, 1, 1.0);
 
         return;
     }

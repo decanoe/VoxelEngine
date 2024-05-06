@@ -18,6 +18,13 @@ const int SCREEN_HEIGHT = 768;
 #define PLAYER_SPEED 8
 #define LOADING_RADIUS 5
 
+float get_time_from(std::chrono::_V2::system_clock::time_point point) {
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_time = end-point;
+    double elapsed_seconds = elapsed_time.count();
+    return elapsed_seconds;
+}
+
 int main(int argc, char *args[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
@@ -45,9 +52,8 @@ int main(int argc, char *args[]) {
     bool loop = true;
     float deltatime = 0.001;
     while (loop) {
-        auto start = std::chrono::system_clock::now();
+        auto frame_start = std::chrono::system_clock::now();
 
-        // std::cout << "Events - ";
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             switch (e.type)
@@ -65,6 +71,9 @@ int main(int argc, char *args[]) {
                     case SDLK_F5:
                         world.send_data();
                         break;
+                    case SDLK_F12:
+                        screen.set_full_screen(!screen.is_full_screen());
+                        break;
                 }
                 break;
             }
@@ -72,27 +81,30 @@ int main(int argc, char *args[]) {
             player.process_specific_event(e, deltatime);
         }
         
-        // std::cout << "world - ";
+        auto world_start = std::chrono::system_clock::now();
         world.update(0);
+        float world_time = get_time_from(world_start);
         
-        // std::cout << "player events - ";
+        auto player_start = std::chrono::system_clock::now();
         player.process_events(deltatime);
-        // std::cout << "player physics - ";
         player.update(deltatime);
+        float player_time = get_time_from(player_start);
     
-        // std::cout << "render - ";
+        auto render_start = std::chrono::system_clock::now();
         screen.render();
-        // std::cout << "update - ";
-        screen.update();
-        // std::cout << "end of frame\n";
+        float render_time = get_time_from(player_start);
 
-        auto end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_time = end-start;
+        screen.update();
+        screen.set_uniform("debug_time", world_time, player_time, render_time);
+
+        auto frame_end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_time = frame_end-frame_start;
         double elapsed_seconds = elapsed_time.count();
         deltatime = elapsed_seconds;
         // std::cout << "time to render frame : " << elapsed_seconds << " (fps : " << 1/elapsed_seconds << ")\n";
         
         screen.set_uniform("deltatime", deltatime);
+        // std::cout << "time to render frame : " << elapsed_seconds << " (fps : " << 1/elapsed_seconds << ")\n";
     }
 
     world.dispose();

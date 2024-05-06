@@ -25,6 +25,8 @@ private:
 
     std::string vertex_shader_source = "";
     std::string fragment_shader_source = "";
+
+    bool full_screen = false;
 public:
     int width = 1080;
     int height = 768;
@@ -37,6 +39,9 @@ public:
 
     void render();
     void update();
+
+    bool is_full_screen();
+    void set_full_screen(bool full);
 
     bool set_uniform(const GLchar* name, float value);
     bool set_uniform(const GLchar* name, float x, float y);
